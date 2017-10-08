@@ -13,9 +13,15 @@ import com.amap.api.location.AMapLocationClientOption;
 import com.amap.api.location.AMapLocationListener;
 import com.amap.api.maps.AMap;
 import com.amap.api.maps.AMapUtils;
+import com.amap.api.maps.CameraUpdateFactory;
 import com.amap.api.maps.MapView;
 import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.MyLocationStyle;
+import com.amap.api.maps.model.Polyline;
+import com.amap.api.maps.model.PolylineOptions;
+import com.amap.api.trace.LBSTraceClient;
+import com.amap.api.trace.TraceLocation;
+import com.amap.api.trace.TraceStatusListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +31,7 @@ public class MainActivity extends Activity {
     AMap mAMap=null;
     TextView mTv2;
     TextView mTv;
-    int mCoorInterval=5;
+
 
     //声明AMapLocationClient类对象
     public AMapLocationClient mLocationClient = null;
@@ -35,9 +41,12 @@ public class MainActivity extends Activity {
     public AMapLocationClientOption mLocationOption = null;
 
     private MyLocationStyle myLocationStyle;
-
+    private LBSTraceClient mTraceClient=null;//轨迹服务
+    private TraceStatusListener mTraceListener;
+    private Polyline mPolyline;
     ArrayList<AMapLocation> mLocList=new ArrayList<>();
     ArrayList<LatLng> mAvgLocList=new ArrayList<>();
+    int mCoorInterval=5;
     private int mSpan=1000;//设置定位时间间隔
     private double mCurSpeed=0;
     private double mAvgSpeed=0;
@@ -81,6 +90,22 @@ public class MainActivity extends Activity {
         mLocationOption.setInterval(mSpan);
         //给定位客户端对象设置定位参数
         mLocationClient.setLocationOption(mLocationOption);
+
+        //显示轨迹，轨迹纠偏
+        mTraceListener=new TraceStatusListener() {
+            @Override
+            public void onTraceStatus(List<TraceLocation> list, List<LatLng> list1, String s) {
+                List<LatLng> latLngs = new ArrayList<LatLng>();
+                for(LatLng ll:list1)//纠偏后的点集
+                {
+                    latLngs.add(ll);
+                }
+                mPolyline =mAMap.addPolyline(new PolylineOptions().
+                        addAll(latLngs).width(10).color(Color.argb(255, 1, 1, 1)));
+            }
+        };
+        mTraceClient = LBSTraceClient.getInstance(this.getApplicationContext());
+        mTraceClient.startTrace(mTraceListener); //开始采集,需要传入一个状态回调监听。
 
     }
     //可以通过类implement方式实现AMapLocationListener接口，也可以通过创造接口类对象的方法实现
@@ -132,22 +157,22 @@ public class MainActivity extends Activity {
                         //如何去掉定位偏差造成的距离误判？10个点为一组取平均？
 
                     }
-                    amapLocation.getLocationType();//获取当前定位结果来源，如网络定位结果，详见定位类型表
-                    amapLocation.getLatitude();//获取纬度
-                    amapLocation.getLongitude();//获取经度
-                    amapLocation.getAccuracy();//获取精度信息
-                    amapLocation.getAddress();//地址，如果option中设置isNeedAddress为false，则没有此结果，网络定位结果中会有地址信息，GPS定位不返回地址信息。
-                    amapLocation.getCountry();//国家信息
-                    amapLocation.getProvince();//省信息
-                    amapLocation.getCity();//城市信息
-                    amapLocation.getDistrict();//城区信息
-                    amapLocation.getStreet();//街道信息
-                    amapLocation.getStreetNum();//街道门牌号信息
-                    amapLocation.getCityCode();//城市编码
-                    amapLocation.getAdCode();//地区编码
-                    amapLocation.getAoiName();//获取当前定位点的AOI信息
-                    amapLocation.getBuildingId();//获取当前室内定位的建筑物Id
-                    amapLocation.getFloor();//获取当前室内定位的楼层
+//                    amapLocation.getLocationType();//获取当前定位结果来源，如网络定位结果，详见定位类型表
+//                    amapLocation.getLatitude();//获取纬度
+//                    amapLocation.getLongitude();//获取经度
+//                    amapLocation.getAccuracy();//获取精度信息
+//                    amapLocation.getAddress();//地址，如果option中设置isNeedAddress为false，则没有此结果，网络定位结果中会有地址信息，GPS定位不返回地址信息。
+//                    amapLocation.getCountry();//国家信息
+//                    amapLocation.getProvince();//省信息
+//                    amapLocation.getCity();//城市信息
+//                    amapLocation.getDistrict();//城区信息
+//                    amapLocation.getStreet();//街道信息
+//                    amapLocation.getStreetNum();//街道门牌号信息
+//                    amapLocation.getCityCode();//城市编码
+//                    amapLocation.getAdCode();//地区编码
+//                    amapLocation.getAoiName();//获取当前定位点的AOI信息
+//                    amapLocation.getBuildingId();//获取当前室内定位的建筑物Id
+//                    amapLocation.getFloor();//获取当前室内定位的楼层
 //                    amapLocation.getGpsStatus();//获取GPS的当前状态
 ////获取定位时间
 //                    SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -183,7 +208,7 @@ public class MainActivity extends Activity {
     {
         if(!mStarted){
             init();
-            mTv2.setText("定位开启！");
+            mTv2.setText("定位开启！请稍等15秒...");
             //显示定位点
             myLocationStyle = new MyLocationStyle();//初始化定位蓝点样式类myLocationStyle.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE);//连续定位、且将视角移动到地图中心点，定位点依照设备方向旋转，并且会跟随设备移动。（1秒1次定位）如果不设置myLocationType，默认也会执行此种模式。
             myLocationStyle.interval(mSpan); //设置连续定位模式下的定位间隔，只在连续定位模式下生效，单次定位模式下不会生效。单位为毫秒。
@@ -196,14 +221,16 @@ public class MainActivity extends Activity {
             mLocationClient.startLocation();
             mTv.setText("检测已开始...");
             mStarted=true;
+            mAMap.moveCamera(CameraUpdateFactory.zoomTo(12));//设定缩放级别
         }
         else{
             mStarted=false;
             mLocationClient.stopLocation();
-            mLocationClient.onDestroy();
             mAMap.setMyLocationEnabled(false);
             mTv.setText("检测结束！");
-
+            if(mPolyline!=null){
+                mPolyline.remove();//清楚轨迹
+            }
         }
 
     }
